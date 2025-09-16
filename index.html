@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timer Web App</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    /* ===== Reset & Base ===== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Segoe UI", sans-serif;
+    }
+    body {
+      background: #111;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      max-height: 690px;
+      transition: background 0.4s ease, color 0.4s ease;
+    }
+    .hidden { display: none; }
+
+    /* ===== Splash Screen ===== */
+    #splash {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 1s ease;
+    }
+    #splash.fade-out { opacity: 0; pointer-events: none; }
+    #splash img { width: 480px; }
+
+    /* ===== App Layout ===== */
+    #app {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 5vw; /* use viewport width for padding */
+  text-align: center;
+  width: 100%;
+  min-height: 100vh; /* always fills screen */
+}
+
+
+    /* ===== Time Display ===== */
+    #display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    #time {
+  font-size: clamp(2rem, 10vw, 5rem); /* scales between 2rem and 5rem */
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+    #adjust {
+      display: none; /* Hidden by default */
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ===== Buttons & Controls ===== */
+    .circle-btn,
+    .icon-btn {
+      width: clamp(40px, 8vw, 60px);
+      height: clamp(40px, 8vw, 60px);
+      border: 2px solid currentColor;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.2s ease;
+      font-size: clamp(1rem, 2.5vw, 1.5rem);
+      background: rgba(0, 0, 0, 0.2);
+    }
+    .circle-btn:hover,
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0);
+      transform: scale(1.1);
+    }
+
+    /* ===== Mode Buttons ===== */
+    #modes {
+      display: flex;
+      gap: 15px;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+    .mode-btn {
+      padding: clamp(6px, 2vw, 12px) clamp(12px, 4vw, 24px);
+      font-size: clamp(0.8rem, 2vw, 1.2rem);
+      border: 3px solid currentColor;
+      border-radius: 20px;
+      background: rgba(21, 21, 21, 0);
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.2s ease;
+    }
+    .mode-btn.active { background: rgba(0, 0, 0, 0.137); }
+    .mode-btn:hover { transform: translateY(-2px); }
+
+    /* ===== Select Elements ===== */
+    select {
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1.5px solid #ccc;
+      border-radius: 8px;
+      color: inherit;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    select:focus { outline: none; background: rgba(255,255,255,0.1); }
+
+    /* ===== Controls Row ===== */
+    #controls {
+      display: none; /* Hidden by default */
+      flex-direction: row;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    /* ===== Footer ===== */
+    footer {
+      margin-top: 200px;
+      text-align: center;
+      opacity: 0.8;
+    }
+  
+    .socials a {
+      color: inherit;
+      font-size: 20px;
+      transition: color 0.3s ease;
+    }
+    .socials a:hover { color: #ff9800; }
+
+    /* ===== Navigation Menu ===== */
+    #menu-icon {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      font-size: 28px;
+      cursor: pointer;
+      z-index: 1100;
+    }
+    #nav {
+      position: fixed;
+      top: 0;
+      left: -260px;
+      width: 260px;
+      height: 100vh;
+      background: #222;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: left 0.3s ease;
+      z-index: 1200;
+    }
+    #nav.active { left: 0; }
+    #nav ul { list-style: none; margin-top: 40px; }
+    #nav li { margin: 15px 0; }
+    #nav a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: color 0.3s ease;
+    }
+    #nav-social {
+      display: flex;              
+      justify-content: center;     
+      align-items: center;
+      gap: 10px;        
+      margin-top: 20px;
+    }
+    #nav a:hover { color: #ff9800; }
+    #nav .close-btn {
+      text-align: right;
+      font-size: 22px;
+      cursor: pointer;
+    }
+
+    /* ===== Modal ===== */
+    .modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      background: #00000087;
+      border-radius: 12px;
+      min-width: 80%;
+      max-width: 90%;
+      padding: 5vw;
+      width: 90%;
+      display: none;
+      z-index: 1300;
+      text-align: center;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      opacity: 0;
+      box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+    }
+    .modal.active {
+      display: block;
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+    .modal h2 {
+      margin-bottom: 15px;
+      color: #ff9800;
+      font-size: clamp(1.2rem, 4vw, 1.8rem);
+    }
+    .modal p {
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .modal p, .modal li {
+      font-size: clamp(0.9rem, 3vw, 1.1rem);
+    }
+    .modal .close-modal {
+      background: #ff9800;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .modal .close-modal:hover { background: #ffb733; }
+
+    /* ===== Overlay for Blur ===== */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      z-index: 1250;
+    }
+    #overlay.active { display: block; }
+
+    /* Blur effect applied to content (not nav, not modal) */
+    .blurred {
+      filter: blur(4px);
+      pointer-events: none;
+    }
+
+    /* ===== Theme Toggle ===== */
+    #theme-toggle {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      font-size: 22px;
+      cursor: pointer;
+      z-index: 1100;
+    }
+
+    @media (max-width: 480px) {
+  #menu-icon, #theme-toggle {
+    font-size: 22px;
+  }
+  #tz, select {
+    font-size: 0.9rem;
+  }
+  #adjust {
+    flex-direction: column;
+    gap: 8px;
+  }
+  #controls {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
+
+
+  </style>
+</head>
+<body>
+  <!-- ===== Splash ===== -->
+  <div id="splash"><img src="logo.jpg" alt="Logo"></div>
+
+  <!-- ===== Navigation Menu ===== -->
+  <div id="menu-icon"><i class="fas fa-bars"></i></div>
+  <nav id="nav">
+    <div class="close-btn"><i class="fas fa-times"></i></div>
+    <ul>
+      <li><a href="#" data-modal="about"><i class="fas fa-info-circle"></i> About Us</a></li>
+      <li><a href="#" data-modal="portfolio"><i class="fas fa-user"></i> Developer Portfolio</a></li>
+      <li><a href="#" data-modal="sites"><i class="fas fa-globe"></i> Other Sites</a></li>
+      <li><a href="#" data-modal="games"><i class="fas fa-gamepad"></i>Play Games</a></li>
+    </ul>
+    <div id = "nav-social" class="socials">
+      <a href="https://www.facebook.com/share/19KNspi7d1/?mibextid=wwXIfr"><i class="fab fa-facebook"></i></a>
+      <a href="http://linkedin.com/in/kanchana-herath-9b831a339"><i class="fab fa-linkedin"></i></a>
+      <a href="https://www.instagram.com/kanchana_therath?igsh=MXMybWJtcWVqMW1hcw%3D%3D&utm_source=qr"><i class="fab fa-instagram"></i></a>
+    </div>
+  </nav>
+
+  <div id="overlay"></div>
+
+  <!-- ===== Modals ===== -->
+  <div id="about" class="modal">
+    <h2>About Us</h2>
+    <p>This project portfolio showcases the work of <strong>Kanchana Herath</strong>, highlighting innovative web applications and digital solutions developed with a focus on both functionality and design. One featured project is a timer application that blends elegant design with practical features to help users track time efficiently.</p>
+    <p>Since 2023, I have been building user-friendly applications aimed at enhancing productivity and creating meaningful digital experiences.</p>
+    <button class="close-modal">Close</button>
+  </div>
+
+  <div id="portfolio" class="modal">
+    <h2>Developer Portfolio</h2>
+    <p>I specialize in creating high-quality web applications and digital solutions, with expertise in:</p>
+      <ul style="list-style: none; margin: 15px 0;">
+        <li>• Frontend Web Development</li>
+        <li>• UI/UX Design</li>
+        <li>• JavaScript Applications</li>
+        <li>• Responsive & Mobile-Friendly Design</li>
+      </ul>
+        <p>Explore my work and connect with me through the following links:</p>
+      <ul style="list-style: none; margin: 10px 0; padding-left: 0;">
+        <li>• <a href="YOUR_FREELANCING_LINK" target="_blank" style="color: #ff9800;">Freelancing Profile</a></li>
+        <li>• <a href="YOUR_RESUME_LINK" target="_blank" style="color: #ff9800;">Resume</a></li>
+        <li>• <a href="YOUR_PORTFOLIO_LINK" target="_blank" style="color: #ff9800;">Full Portfolio</a></li>
+      </ul>
+    <button class="close-modal">Close</button>
+  </div>
+
+  <div id="sites" class="modal">
+    <h2>Other Sites</h2>
+    <p>Check out our other web applications and projects:</p>
+    <ul style="list-style: none; margin: 15px 0;">
+      <li>• <a href="#" style="color: #ff9800;">Productivity Suite</a></li>
+      <li>• <a href="#" style="color: #ff9800;">Health & Wellness Tracker</a></li>
+      <li>• <a href="#" style="color: #ff9800;">E-commerce Solutions</a></li>
+    </ul>
+    <p>More projects coming soon!</p>
+    <button class="close-modal">Close</button>
+  </div>
+
+    <div id="games" class="modal">
+    <h2>Play Games Now!</h2>
+    <p>Play my online logic games and challenge your mind:</p>
+      <ul style="list-style: none; margin: 15px 0;">
+        <li>• <a href="ud.html" target="_blank" style="color: #ff9800;">Tower of Hanoi</a></li>
+        <li>• <a href="ud.html" target="_blank" style="color: #ff9800;">Goat, Wolf & Cabbage</a></li>
+        <li>• <a href="ud.html" target="_blank" style="color: #ff9800;">Missionaries & Cannibals</a></li>
+        <li>• <a href="ud.html" target="_blank" style="color: #ff9800;">Ludo</a></li>
+      </ul>
+    <p>More games coming soon!</p>
+
+    <button class="close-modal">Close</button>
+  </div>
+
+  
+
+  <!-- ===== Theme Toggle ===== -->
+  <div id="theme-toggle"><i class="fas fa-moon"></i></div>
+
+  <!-- ===== Main App ===== -->
+  <div id="app" class="hidden">
+    <div id="display">
+      <div id="time">00:00:00</div>
+      <div id="adjust">
+        <div id="decrease" class="circle-btn"><i class="fas fa-minus"></i></div>
+        <select id="adjust-type">
+          <option value="sec">Seconds</option>
+          <option value="min">Minutes</option>
+          <option value="hour">Hours</option>
+        </select>
+        <div id="increase" class="circle-btn"><i class="fas fa-plus"></i></div>
+      </div>
+    </div>
+
+    <div id="modes">
+      <button class="mode-btn active" data-mode="clock">Current Time</button>
+      <button class="mode-btn" data-mode="stopwatch">Stopwatch</button>
+      <button class="mode-btn" data-mode="timer">Timer</button>
+    </div>
+
+    <!-- Timer Controls (initially hidden) -->
+    <div id="controls">
+      <div id="start" class="icon-btn"><i class="fas fa-play"></i></div>
+      <div id="pause" class="icon-btn"><i class="fas fa-pause"></i></div>
+      <div id="reset" class="icon-btn"><i class="fas fa-redo"></i></div>
+    </div>
+
+    <div style="margin-top: 20px;">
+      <label for="tz">Time Zone:</label>
+      <select id="tz"></select>
+    </div>
+
+    <div id="color-picker" style="margin-top: 20px;">
+      <label for="color">Choose Color:</label>
+      <input type="color" id="color" value="#ffffff">
+    </div>
+
+    <footer>
+      <p>ZONO Technologies</p><br>
+      <p>HerathT Solutions</p>
+      <div class="socials">
+        <a href="https://www.facebook.com/share/19KNspi7d1/?mibextid=wwXIfr"><i class="fab fa-facebook"></i></a>
+        <a href="http://linkedin.com/in/kanchana-herath-9b831a339"><i class="fab fa-linkedin"></i></a>
+        <a href="https://www.instagram.com/kanchana_therath?igsh=MXMybWJtcWVqMW1hcw%3D%3D&utm_source=qr"><i class="fab fa-instagram"></i></a>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // DOM Elements
+    const splash = document.getElementById("splash");
+    const app = document.getElementById("app");
+    const timeDisplay = document.getElementById("time");
+    const modeBtns = document.querySelectorAll(".mode-btn");
+    const nav = document.getElementById("nav");
+    const menuIcon = document.getElementById("menu-icon");
+    const closeNavBtn = document.querySelector("#nav .close-btn");
+    const overlay = document.getElementById("overlay");
+    const modals = document.querySelectorAll(".modal");
+    const closeModalBtns = document.querySelectorAll(".close-modal");
+    const themeToggle = document.getElementById("theme-toggle"); 
+    const controls = document.getElementById("controls");
+    const adjustSection = document.getElementById("adjust");
+
+    // Variables
+    let mode = "clock";
+    let stopwatchInterval = null;
+    let timerInterval = null;
+    let swTime = 0, timerTime = 0;
+    let dark = true;
+
+    // Initialize app
+    function init() {
+      setTimeout(() => {
+        splash.classList.add("fade-out");
+        setTimeout(() => app.classList.remove("hidden"), 1000);
+      }, 2000);
+
+      setupTimezoneSelector();
+      updateClock(); // initial
+      setInterval(updateClock, 1000); // keeps running clock updated (only applied when mode === "clock")
+      setupEventListeners();
+      
+      // Initially hide controls and adjust section
+      controls.style.display = "none";
+      adjustSection.style.display = "none";
+    }
+
+    // Timezone selector
+    function setupTimezoneSelector() {
+      const tzSelect = document.getElementById("tz");
+      
+      try {
+        if (typeof Intl.supportedValuesOf === 'function') {
+          Intl.supportedValuesOf("timeZone").forEach(tz => {
+            const opt = document.createElement("option");
+            opt.value = tz;
+            opt.textContent = tz;
+            if (tz === Intl.DateTimeFormat().resolvedOptions().timeZone) opt.selected = true;
+            tzSelect.appendChild(opt);
+          });
+        } else {
+          const commonTimezones = [
+            'UTC','America/New_York','America/Chicago','America/Denver',
+            'America/Los_Angeles','Europe/London','Europe/Paris','Asia/Tokyo',
+            'Asia/Shanghai','Australia/Sydney'
+          ];
+          commonTimezones.forEach(tz => {
+            const opt = document.createElement("option");
+            opt.value = tz;
+            opt.textContent = tz;
+            if (tz === Intl.DateTimeFormat().resolvedOptions().timeZone) opt.selected = true;
+            tzSelect.appendChild(opt);
+          });
+        }
+      } catch (e) {
+        const opt = document.createElement("option");
+        opt.value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        opt.textContent = "Local Time";
+        opt.selected = true;
+        tzSelect.appendChild(opt);
+      }
+
+      tzSelect.onchange = () => {
+        if (mode === "clock") updateClock();
+      };
+    }
+
+    // Event listeners
+    function setupEventListeners() {
+      // Mode buttons
+      modeBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+          modeBtns.forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          mode = btn.dataset.mode;
+
+          // Clear only the main stopwatch/timer intervals when switching modes
+          clearIntervals();
+
+          if (mode === "clock") {
+            updateClock();
+            controls.style.display = "none";
+            adjustSection.style.display = "none";
+          } else if (mode === "stopwatch") {
+            swTime = 0;
+            timeDisplay.textContent = "00:00:00";
+            controls.style.display = "flex";
+            adjustSection.style.display = "none";
+          } else if (mode === "timer") {
+            timerTime = 0;
+            timeDisplay.textContent = "00:00:00";
+            controls.style.display = "flex";
+            adjustSection.style.display = "flex";
+          }
+        });
+      });
+
+      // Control buttons
+      document.getElementById("start").addEventListener("click", startAction);
+      document.getElementById("pause").addEventListener("click", pauseAction);
+      document.getElementById("reset").addEventListener("click", resetAction);
+
+      // Timer adjustments
+      document.getElementById("increase").addEventListener("click", increaseTime);
+      document.getElementById("decrease").addEventListener("click", decreaseTime);
+
+      // Navigation
+      menuIcon.addEventListener("click", () => nav.classList.add("active"));
+      closeNavBtn.addEventListener("click", () => nav.classList.remove("active"));
+      overlay.addEventListener("click", closeModalsAndNav);
+
+      document.querySelectorAll("#nav a").forEach(link => {
+        link.onclick = e => {
+          e.preventDefault();
+          nav.classList.remove("active");
+          app.classList.add("blurred");
+          modals.forEach(m => m.classList.remove("active"));
+          const modal = document.getElementById(link.dataset.modal);
+          modal.classList.add("active");
+          overlay.classList.add("active");
+        };
+      });
+
+      closeModalBtns.forEach(btn => btn.addEventListener("click", closeModalsAndNav));
+
+      // Theme toggle
+      themeToggle.addEventListener("click", toggleTheme);
+
+      // Color picker
+      document.getElementById("color").addEventListener("input", e => {
+        document.body.style.color = e.target.value;
+        document.querySelectorAll('.circle-btn, .icon-btn, .mode-btn').forEach(btn => {
+          btn.style.borderColor = e.target.value;
+          btn.style.color = e.target.value;
+        });
+      });
+
+      //default color
+      const colorInput = document.getElementById("color");
+
+  // Function to apply color
+  function applyColor(color) {
+    document.body.style.color = color;
+    document.querySelectorAll('.circle-btn, .icon-btn, .mode-btn').forEach(btn => {
+      btn.style.borderColor = color;
+      btn.style.color = color;
+    });
+  }
+
+  // Apply default color on page load
+  applyColor(colorInput.value);
+
+  // Update color on input change
+  colorInput.addEventListener("input", e => {
+    applyColor(e.target.value);
+  });
+    }
+
+    // Clock
+    function updateClock() {
+      if (mode !== "clock") return;
+      const now = new Date();
+      const tzSelect = document.getElementById("tz");
+      const timeZone = tzSelect.value;
+      timeDisplay.textContent = now.toLocaleTimeString("en-US", { hour12: true, timeZone });
+    }
+
+    // Format
+    function formatTime(sec) {
+      const h = String(Math.floor(sec / 3600)).padStart(2, "0");
+      const m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
+      const s = String(sec % 60).padStart(2, "0");
+      return `${h}:${m}:${s}`;
+    }
+
+    // Stopwatch/Timer actions
+    function startAction() {
+      if (mode === "stopwatch") {
+        clearInterval(stopwatchInterval);
+        stopwatchInterval = setInterval(() => {
+          swTime++;
+          timeDisplay.textContent = formatTime(swTime);
+        }, 1000);
+        return;
+      }
+
+      if (mode === "timer") {
+        clearInterval(timerInterval);
+        if (timerTime <= 0) return;
+        timerInterval = setInterval(() => {
+          if (timerTime > 0) {
+            timerTime--;
+            timeDisplay.textContent = formatTime(timerTime);
+          } else {
+            clearInterval(timerInterval);
+            try { new Audio("https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3").play().catch(()=>{}); } catch(e) {}
+          }
+        }, 1000);
+      }
+    }
+
+    function pauseAction() {
+      clearInterval(stopwatchInterval);
+      clearInterval(timerInterval);
+    }
+
+    function resetAction() {
+      clearInterval(stopwatchInterval);
+      clearInterval(timerInterval);
+      if (mode === "stopwatch") {
+        swTime = 0;
+        timeDisplay.textContent = formatTime(swTime);
+      } else if (mode === "timer") {
+        timerTime = 0;
+        timeDisplay.textContent = formatTime(timerTime);
+      }
+    }
+
+    function increaseTime() {
+      if (mode !== "timer") return;
+      const type = document.getElementById("adjust-type").value;
+      if (type === "sec") timerTime++;
+      else if (type === "min") timerTime += 60;
+      else timerTime += 3600;
+      timeDisplay.textContent = formatTime(timerTime);
+    }
+
+    function decreaseTime() {
+      if (mode !== "timer") return;
+      const type = document.getElementById("adjust-type").value;
+      if (type === "sec" && timerTime >= 1) timerTime--;
+      else if (type === "min" && timerTime >= 60) timerTime -= 60;
+      else if (type === "hour" && timerTime >= 3600) timerTime -= 3600;
+      else timerTime = 0;
+      timeDisplay.textContent = formatTime(timerTime);
+    }
+
+    function clearIntervals() {
+      clearInterval(stopwatchInterval);
+      clearInterval(timerInterval);
+      stopwatchInterval = null;
+      timerInterval = null;
+    }
+
+    // UI helpers
+    function closeModalsAndNav() {
+      nav.classList.remove("active");
+      modals.forEach(modal => modal.classList.remove("active"));
+      overlay.classList.remove("active");
+      app.classList.remove("blurred");
+    }
+
+    function toggleTheme() {
+      dark = !dark;
+      if (dark) {
+        document.body.style.background = "#111";
+        document.body.style.color = "#fff";
+        themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+        document.querySelectorAll('select').forEach(sel => sel.style.borderColor = '#ccc');
+      } else {
+        document.body.style.background = "#f4f4f4";
+        document.body.style.color = "#111";
+        themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+        document.querySelectorAll('select').forEach(sel => sel.style.borderColor = '#666');
+      }
+    }
+
+    function getPhaseName() {
+      if (mode === "clock") return "CURRENT TIME";
+      if (mode === "stopwatch") return "STOPWATCH";
+      if (mode === "timer") return "TIMER";
+      return "";
+    }
+
+
+    // Run app
+    init();
+  </script>
+</body>
+</html>
